@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tributary</title>
+<style>
+  :root { --bg: #f6f6f4; --panel: #fff; --line: #ddd; --text: #1d1f22; --dim: #6c7077; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #18191c; --panel: #222327; --line: #34363c; --text: #e6e6e3; --dim: #9a9da3; } }
+  body { margin: 0; padding: 16px; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
+  h1 { font-size: 18px; margin: 0 0 12px; }
+  .row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 16px; color: var(--dim); }
+  .row b { color: var(--text); font-weight: 600; }
+  table { border-collapse: collapse; background: var(--panel); min-width: 480px; }
+  th, td { padding: 4px 12px; border-bottom: 1px solid var(--line); text-align: right; font-variant-numeric: tabular-nums; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--dim); font-weight: 400; }
+</style>
+</head>
+<body>
+<h1>tributary</h1>
+<div class="row" id="totals"></div>
+<table id="parts"></table>
+<script>
+let prev = null;
+async function tick() {
+  const s = await (await fetch("/api/stats")).json();
+  const rate = prev ? (s.produced_msgs - prev.produced_msgs) / (s.uptime_s - prev.uptime_s) : 0;
+  prev = s;
+  document.getElementById("totals").innerHTML =
+    `<span>uptime <b>${s.uptime_s.toFixed(0)} s</b></span><span>connections <b>${s.connections}</b></span>` +
+    `<span>requests <b>${s.requests}</b></span><span>produced <b>${s.produced_msgs}</b> msgs</span>` +
+    `<span>rate <b>${rate.toFixed(0)}</b> msgs/s</span><span>protocol errors <b>${s.protocol_errors}</b></span>`;
+  const rows = (s.topics || []).flatMap((t) => t.partitions.map((p) =>
+    `<tr><td>${t.name}</td><td>${p.partition}</td><td>${p.start}</td><td>${p.end}</td><td>${(p.bytes / 1e6).toFixed(2)} MB</td></tr>`));
+  document.getElementById("parts").innerHTML =
+    "<tr><th>topic</th><th>partition</th><th>start</th><th>end offset</th><th>size</th></tr>" + rows.join("");
+}
+tick();
+setInterval(tick, 1000);
+</script>
+</body>
+</html>

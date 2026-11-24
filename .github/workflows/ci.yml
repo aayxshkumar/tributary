@@ -1,0 +1,30 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+        go: ["1.21", "stable"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+      - name: Vet and test
+        run: |
+          go vet ./...
+          go test -race ./...
+      - name: Build
+        run: go build -o tributary ./cmd/tributary
+      - name: Real-client checks
+        run: python3 tools/check.py
+      - name: Mutants
+        if: matrix.os == 'ubuntu-24.04' && matrix.go == 'stable'
+        run: python3 tools/mutants.py
